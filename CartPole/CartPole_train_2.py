@@ -9,7 +9,7 @@ gamma = 0.99
 epsilon_start = 1.0
 epsilon_decay = 0.9995
 epsilon_min = 0.01
-TAU_VALUES = [-3.0, -2.0, -1, 0.0, 1, 2, 3, 4]
+TAU_VALUES = [-2, -1, 0, 0.25, 0.5, 0.75, 1]
 MAX_EPISODES = 20000
 N_RUNS     = 3
 q_table = {}
@@ -130,7 +130,7 @@ for i, (m, s) in enumerate(zip(aucl_means, aucl_stds)):
 # PLOT 2 — SMOOTHED LEARNING CURVES for select tau values
 # ============================================================
 ax2 = axes[1]
-highlight_taus = [-2.0, -1.0, 0.0, 1, 2, 3]  # subset for readability
+highlight_taus = [-2.0, -1.0, 0.0, 0.2, 0.5, 0.8]  # subset for readability
 cmap = plt.cm.coolwarm
 colors_lc = [cmap(i / (len(highlight_taus) - 1)) for i in range(len(highlight_taus))]
  
