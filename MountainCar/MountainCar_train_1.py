@@ -10,36 +10,40 @@ gamma = 0.85
 epsilon_start = 1.0
 epsilon_decay = 0.99
 epsilon_min = 0.01
-TAU_VALUES = [-3, -2, -1, 0, 1, 2, 3, 4]
+TAU_VALUES = [-5, -3, -2, -1, 0, 1, 2, 3, 5]
 MAX_EPISODES = 50000
-N_RUNS     = 3
+N_RUNS = 3
+
 
 def get_q(q_table, state, action):
     return q_table.get((state, action), 0.0)
 
+
 def smooth(rewards, window=50):
-    return np.convolve(rewards, np.ones(window)/window, mode='valid')
+    return np.convolve(rewards, np.ones(window) / window, mode="valid")
+
 
 def discretize(obs):
     bins = [
-        np.linspace(-1.2,  0.6,  30),   # position
-        np.linspace(-0.07, 0.07, 30),   # velocity
+        np.linspace(-1.2, 0.6, 30),  # position
+        np.linspace(-0.07, 0.07, 30),  # velocity
     ]
     return tuple(np.digitize(obs[i], bins[i]) for i in range(len(obs)))
 
+
 def train(tau_value):
     tau = tau_value
-    env = gym.make("MountainCar-v0") 
+    env = gym.make("MountainCar-v0")
     q_table = {}
     epsilon = epsilon_start
     episode_rewards = []
     for i in range(MAX_EPISODES):
         obs, _ = env.reset()
         state = discretize(obs)
-        
+
         total_reward = 0
 
-        for t in range(500): # or 200 depending on env
+        for t in range(500):  # or 200 depending on env
             if random.random() < epsilon:
                 action = env.action_space.sample()
             else:
@@ -52,9 +56,9 @@ def train(tau_value):
             pos, vel = obs
             next_pos, next_vel = next_obs
             height_gain = math.sin(3 * next_pos) - math.sin(3 * pos)
-            speed_gain = abs(next_vel) - abs(vel)        
+            speed_gain = abs(next_vel) - abs(vel)
             shaped = reward + height_gain + speed_gain * 10
-            
+
             best_next = max([get_q(q_table, next_state, a) for a in range(3)])
             old_q = get_q(q_table, state, action)
 
@@ -73,8 +77,9 @@ def train(tau_value):
     env.close()
     return episode_rewards
 
-results = {}   
-aucl    = {}  
+
+results = {}
+aucl = {}
 
 for tau in TAU_VALUES:
     print("Start for tau = ", tau)
@@ -87,16 +92,20 @@ for tau in TAU_VALUES:
     mean_aucl = np.mean(aucl[tau])
     print("Mean of AUCL is:", mean_aucl)
 
-tau_vals   = TAU_VALUES
+tau_vals = TAU_VALUES
 aucl_means = [np.mean(aucl[t]) for t in tau_vals]
-aucl_stds  = [np.std(aucl[t])  for t in tau_vals]
- 
+aucl_stds = [np.std(aucl[t]) for t in tau_vals]
+
 best_idx = int(np.argmax(aucl_means))
-colors   = ['#378ADD' if i != best_idx else '#3B9B3F' for i in range(len(tau_vals))]
- 
+colors = ["#378ADD" if i != best_idx else "#3B9B3F" for i in range(len(tau_vals))]
+
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-fig.suptitle('MountainCar-v0 — Clipped TD Error Sweep (Max Ep=50000)', fontsize=14, fontweight='bold')
- 
+fig.suptitle(
+    "MountainCar-v0 — Clipped TD Error Sweep (Max Ep=50000)",
+    fontsize=14,
+    fontweight="bold",
+)
+
 ax1 = axes[0]
 bars = ax1.bar(
     [str(t) for t in tau_vals],
@@ -104,40 +113,45 @@ bars = ax1.bar(
     yerr=aucl_stds,
     color=colors,
     capsize=5,
-    edgecolor='white',
-    linewidth=0.5
+    edgecolor="white",
+    linewidth=0.5,
 )
-ax1.axhline(y=aucl_means[tau_vals.index(0.0)], color='gray',
-            linestyle='--', linewidth=1, label='τ=0 baseline')
-ax1.set_xlabel('τ (clipping threshold)')
-ax1.set_ylabel('AUCL (area under learning curve)')
-ax1.set_title('AUCL vs τ')
+ax1.axhline(
+    y=aucl_means[tau_vals.index(0.0)],
+    color="gray",
+    linestyle="--",
+    linewidth=1,
+    label="τ=0 baseline",
+)
+ax1.set_xlabel("τ (clipping threshold)")
+ax1.set_ylabel("AUCL (area under learning curve)")
+ax1.set_title("AUCL vs τ")
 ax1.legend()
-ax1.tick_params(axis='x', rotation=45)
+ax1.tick_params(axis="x", rotation=45)
 for i, (m, s) in enumerate(zip(aucl_means, aucl_stds)):
-    ax1.text(i, m + s + 50, f'{m:,.0f}', ha='center', fontsize=8, color='#333')
- 
+    ax1.text(i, m + s + 50, f"{m:,.0f}", ha="center", fontsize=8, color="#333")
+
 ax2 = axes[1]
-highlight_taus = [-2, -1, 0, 1, 2]  
+highlight_taus = [-5, -2, 0, 1, 3, 5]
 cmap = plt.cm.coolwarm
 colors_lc = [cmap(i / (len(highlight_taus) - 1)) for i in range(len(highlight_taus))]
- 
+
 for tau, col in zip(highlight_taus, colors_lc):
     avg_rewards = np.mean(results[tau], axis=0)
-    smoothed    = smooth(avg_rewards, window=50)
-    episodes    = np.arange(len(smoothed))
-    ax2.plot(episodes, smoothed, label=f'τ={tau:+.1f}', color=col, linewidth=1.5)
- 
-ax2.set_xlabel('Episode')
-ax2.set_ylabel('Reward (smoothed, window=50)')
-ax2.set_title('Learning Curves (select τ values)')
+    smoothed = smooth(avg_rewards, window=50)
+    episodes = np.arange(len(smoothed))
+    ax2.plot(episodes, smoothed, label=f"τ={tau:+.1f}", color=col, linewidth=1.5)
+
+ax2.set_xlabel("Episode")
+ax2.set_ylabel("Reward (smoothed, window=50)")
+ax2.set_title("Learning Curves (select τ values)")
 ax2.legend(fontsize=9)
- 
+
 plt.tight_layout()
-plt.savefig('figure_mountaincar_1.png', dpi=150, bbox_inches='tight')
+plt.savefig("figure_mountaincar_1.png", dpi=150, bbox_inches="tight")
 print("\nPlot saved to figure_mountaincar_1.png")
 plt.show()
- 
+
 print("\n── Summary ──────────────────────────────")
 print(f"{'tau':>6}  {'mean AUCL':>12}  {'std':>8}")
 print("─" * 32)
@@ -146,6 +160,6 @@ for t in tau_vals:
     s = np.std(aucl[t])
     marker = " ← best" if t == tau_vals[best_idx] else ""
     print(f"{t:>6.1f}  {m:>12,.0f}  {s:>8,.0f}{marker}")
- 
+
 with open("aucl_results_MountainCar_1.pkl", "wb") as f:
     pickle.dump({"tau_values": TAU_VALUES, "aucl": aucl, "rewards": results}, f)
